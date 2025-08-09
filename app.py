@@ -4,6 +4,7 @@ from ocr_utils import extract_text_from_image, convert_pdf_to_images
 from chunk_store import chunk_text, save_chunks, load_chunks
 from vector_store import create_faiss_index, load_faiss_index
 from rag_chain import retrieve_top_k, generate_answer
+from doc_analysis import analyze_document
 
 st.title("📚 Ask Questions from Scanned Documents")
 
@@ -26,6 +27,9 @@ if uploaded_file:
     for img_path in image_paths:
         full_text += extract_text_from_image(img_path) + "\n"
 
+    analysis = analyze_document(full_text)
+    st.subheader("📊 Document Analysis")
+    st.json(analysis)
     chunks = chunk_text(full_text)
     save_chunks(chunks)
     docs = [chunk.page_content for chunk in chunks]

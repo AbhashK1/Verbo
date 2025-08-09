@@ -11,7 +11,7 @@ else:
     device = -1
     print("Using CPU for generation.")
 
-qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-large", device=device)  # flan-t5-base
+qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-base", device=device)  #  flan-t5-large
 
 
 def retrieve_top_k(query, index, docs, k=3):

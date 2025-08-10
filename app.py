@@ -27,9 +27,13 @@ if uploaded_file:
     for img_path in image_paths:
         full_text += extract_text_from_image(img_path) + "\n"
 
-    analysis = analyze_document(full_text)
-    st.subheader("📊 Document Analysis")
-    st.json(analysis)
+    # analysis = analyze_document(full_text)
+    # st.subheader("📊 Document Analysis")
+    # st.json(analysis)
+    doc_info = analyze_document(full_text, file_path)
+    st.subheader("Document Analysis")
+    for key, value in doc_info.items():
+        st.markdown(f"{key}: {value}")
     chunks = chunk_text(full_text)
     save_chunks(chunks)
     docs = [chunk.page_content for chunk in chunks]

@@ -1,0 +1,12 @@
+pillow
+pytesseract
+pdf2image
+langchain
+sentence-transformers
+faiss-cpu
+numpy
+transformers
+torch
+stanza
+langdetect
+keybert

@@ -1,0 +1,132 @@
+st.title("📚 Ask Questions from Scanned Documents")
+
+if 'index_loaded' not in st.session_state:
+    st.session_state['index_loaded'] = False
+
+uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "png", "jpg", "jpeg"])
+
+if uploaded_file:
+    file_path = os.path.join(uploaded_file.name)
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
+    if uploaded_file.name.endswith("pdf"):
+        image_paths = convert_pdf_to_images(file_path)
+    else:
+        image_paths = [file_path]
+
+    full_text = ""
+    for img_path in image_paths:
+        full_text += extract_text_from_image(img_path) + "\n"
+
+    # analysis = analyze_document(full_text)
+    # st.subheader("📊 Document Analysis")
+    # st.json(analysis)
+    doc_info = analyze_document(full_text, file_path)
+    st.subheader("Document Analysis")
+    for key, value in doc_info.items():
+        st.markdown(f"{key}: {value}")
+    chunks = chunk_text(full_text)
+    save_chunks(chunks)
+    docs = [chunk.page_content for chunk in chunks]
+    create_faiss_index(docs)
+    st.session_state['index_loaded'] = True
+    st.success("Document processed and indexed!")
+
+if st.session_state['index_loaded']:
+    query = st.text_input("Ask a question")
+    if st.button("Get Answer") and query:
+        index, docs = load_faiss_index()
+        top_docs = retrieve_top_k(query, index, docs)
+        answer = generate_answer(query, top_docs)
+        print(answer)
+        st.markdown(f"**Answer:** {answer}")
+
+------------------------------------------------------------------------------------------------------------------------------
+
+
+import streamlit as st
+import os
+from ocr_utils import extract_text_from_file
+from doc_analysis import analyze_document
+from chunk_store import chunk_text, save_chunks_jsonl, load_chunks_jsonl
+from vector_store import create_faiss_index, load_faiss_index, add_to_index
+from rag_chain import retrieve_top_k, generate_answer
+
+
+# Updated the ui
+st.set_page_config(layout="wide", page_title="Ask Questions from Scanned Documents")
+st.title("📚 Ask Questions from Scanned Documents")
+
+os.makedirs("data/images", exist_ok=True)
+os.makedirs("data/indexes", exist_ok=True)
+
+if 'index_ready' not in st.session_state:
+    st.session_state['index_ready'] = False
+
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    uploaded = st.file_uploader("Upload PDF or Image", type=["pdf", "png", "jpg", "jpeg"])
+    run_analysis = st.checkbox("Run Document Analysis after ingestion", value=True)
+    chunk_size = st.number_input("Chunk size (chars)", min_value=200, max_value=2000, value=500)
+    chunk_overlap = st.number_input("Chunk overlap", min_value=0, max_value=300, value=50)
+
+with col2:
+    st.markdown("### Query & Answer")
+    depth = st.selectbox("Answer depth", ["short", "medium", "detailed"], index=2)
+    query = st.text_input("Ask a question about the uploaded document(s):")
+    get_answer = st.button("Get Answer")
+
+if uploaded:
+    save_path = os.path.join("data", uploaded.name)
+    with open(save_path, "wb") as f:
+        f.write(uploaded.getbuffer())
+    st.success(f"Saved {uploaded.name} to disk.")
+
+    # Extracting text here
+    with st.spinner("Running OCR..."):
+        full_text = extract_text_from_file(save_path)
+    st.success("OCR complete.")
+
+    if run_analysis:
+        with st.spinner("Running document analysis..."):
+            analysis = analyze_document(full_text, file_path=save_path, out_path=f"data/{uploaded.name}.analysis.json")
+        st.success("Analysis complete.")
+        st.subheader("Document Analysis (Preview)")
+        st.json(analysis)
+
+    # Chunking and indexing here
+    with st.spinner("Chunking and indexing..."):
+        chunks = chunk_text(full_text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        # save chunks
+        save_chunks_jsonl(chunks, path=f"data/{uploaded.name}.chunks.jsonl")
+        docs = [c["text"] for c in chunks]
+        create_faiss_index(docs)
+    st.session_state['index_ready'] = True
+    st.success("Document processed and indexed.")
+
+if st.session_state['index_ready'] or os.path.exists("data/indexes/faiss.index"):
+    try:
+        index, docs = load_faiss_index()
+        st.sidebar.success("Index loaded")
+        st.session_state['index_ready'] = True
+    except Exception as e:
+        st.sidebar.error("No index available. Ingest a document first.")
+        index = None
+        docs = []
+
+if get_answer and query:
+    if not st.session_state.get('index_ready', False):
+        st.error("Index not ready. Upload and index a document first.")
+    else:
+        with st.spinner("Retrieving relevant passages..."):
+            top_docs = retrieve_top_k(query, index, docs, k=6)
+        with st.spinner("Generating answer..."):
+            answer = generate_answer(query, top_docs, depth=depth)
+        st.markdown("### Answer")
+        st.markdown(answer)
+        with st.expander("Show retrieved passages"):
+            for i, d in enumerate(top_docs):
+                st.write(f"**Passage {i+1}:**")
+                st.write(d[:800] + ("..." if len(d) > 800 else ""))

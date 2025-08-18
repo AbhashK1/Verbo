@@ -6,7 +6,6 @@ from chunk_store import chunk_text, save_chunks_jsonl
 from vector_store import create_faiss_index, load_faiss_index
 from rag_chain import retrieve_top_k, generate_answer
 
-# --- App Setup ---
 st.set_page_config(layout="wide", page_title="Ask Questions from Scanned Documents")
 st.title("📚 Ask Questions from Scanned Documents")
 
@@ -23,12 +22,8 @@ if 'analysis' not in st.session_state:
 if 'uploaded_file' not in st.session_state:
     st.session_state['uploaded_file'] = None
 
-# --- Two Equal Columns ---
 col1, col2 = st.columns(2)
 
-# -------------------------
-# Column 1: Upload & Process
-# -------------------------
 with col1:
     uploaded = st.file_uploader("Upload PDF or Image", type=["pdf", "png", "jpg", "jpeg"])
     run_analysis = st.checkbox("Run Document Analysis after ingestion", value=True)
@@ -76,9 +71,6 @@ with col1:
         with st.expander("📊 Document Analysis (Preview)", expanded=False):
             st.json(st.session_state['analysis'])
 
-# -------------------------
-# Column 2: Query & Answer
-# -------------------------
 with col2:
     st.markdown("### Query & Answer")
     depth = st.selectbox("Answer depth", ["short", "medium", "detailed"], index=2)

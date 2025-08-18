@@ -12,7 +12,7 @@ st.title("📚 Ask Questions from Scanned Documents")
 os.makedirs("data/images", exist_ok=True)
 os.makedirs("data/indexes", exist_ok=True)
 
-# --- Session State ---
+
 if 'index_ready' not in st.session_state:
     st.session_state['index_ready'] = False
 if 'ocr_text' not in st.session_state:
@@ -22,6 +22,7 @@ if 'analysis' not in st.session_state:
 if 'uploaded_file' not in st.session_state:
     st.session_state['uploaded_file'] = None
 
+
 col1, col2 = st.columns(2)
 
 with col1:
@@ -30,6 +31,14 @@ with col1:
     chunk_size = st.number_input("Chunk size (chars)", min_value=200, max_value=2000, value=500)
     chunk_overlap = st.number_input("Chunk overlap", min_value=0, max_value=300, value=50)
 
+    # Clear/reset button
+    if st.button("🗑️ Clear uploaded document"):
+        st.session_state['uploaded_file'] = None
+        st.session_state['ocr_text'] = None
+        st.session_state['analysis'] = None
+        st.session_state['index_ready'] = False
+        st.success("Session cleared. You can upload a new document now.")
+
     if uploaded and uploaded.name != st.session_state['uploaded_file']:
         # Reset state for new file
         st.session_state['uploaded_file'] = uploaded.name
@@ -37,18 +46,15 @@ with col1:
         st.session_state['analysis'] = None
         st.session_state['index_ready'] = False
 
-        # Save file
         save_path = os.path.join("data", uploaded.name)
         with open(save_path, "wb") as f:
             f.write(uploaded.getbuffer())
         st.success(f"Saved {uploaded.name} to disk.")
 
-        # OCR
         with st.spinner("Running OCR..."):
             st.session_state['ocr_text'] = extract_text_from_file(save_path)
         st.success("OCR complete.")
 
-        # Analysis
         if run_analysis:
             with st.spinner("Running document analysis..."):
                 st.session_state['analysis'] = analyze_document(
@@ -58,7 +64,6 @@ with col1:
                 )
             st.success("Analysis complete.")
 
-        # Chunking & Indexing
         with st.spinner("Chunking and indexing..."):
             chunks = chunk_text(st.session_state['ocr_text'], chunk_size=chunk_size, chunk_overlap=chunk_overlap)
             save_chunks_jsonl(chunks, path=f"data/{uploaded.name}.chunks.jsonl")
@@ -66,7 +71,6 @@ with col1:
             create_faiss_index(docs)
         st.session_state['index_ready'] = True
 
-    # Show analysis if available
     if st.session_state['analysis']:
         with st.expander("📊 Document Analysis (Preview)", expanded=False):
             st.json(st.session_state['analysis'])

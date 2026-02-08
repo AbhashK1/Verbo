@@ -25,8 +25,6 @@ Verbo is an advanced AI-powered document intelligence system designed to bridge 
 | Summarization | distilbart-cnn-12-6 |
 | Vector Store | FAISS |
 | Language Models | Flan-t5 |
-| Containerization | Docker + Docker Compose |
-| Serialization | JSON (Jackson) |
 
 ---
 
